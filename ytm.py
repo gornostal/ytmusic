@@ -169,8 +169,14 @@ def cmd_playlists(args: argparse.Namespace) -> None:
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Title")
     table.add_column("Tracks", justify="right", style="dim")
+    table.add_column("Owned", justify="center")
     for p in playlists:
-        table.add_row(p["playlistId"], escape(p["title"]), str(p.get("count") or ""))
+        # a playlist that isn't owned rejects add-songs/remove-songs; 'LM' reports
+        # owned: false but is still editable, as like/unlike calls
+        owned = p.get("owned")
+        unclear = owned is None or p["playlistId"] == "LM"
+        mark = "[dim]—[/]" if unclear else ("yes" if owned else "[yellow]no[/]")
+        table.add_row(p["playlistId"], escape(p["title"]), str(p.get("count") or ""), mark)
     console.print(table)
 
 

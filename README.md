@@ -32,6 +32,11 @@ uv run ytm.py delete-playlist -p <playlistId>             # asks y/N
 output, and the `songs`/`liked` tables print the video IDs the editing commands
 take.
 
+The `playlists` table has an `Owned` column: `no` means someone else's playlist
+or an auto-generated one, and `add-songs`/`remove-songs` on it will fail. `LM`
+shows `—` — YouTube reports it as not owned, but it is still editable (see
+below).
+
 The two destructive commands ask for confirmation, defaulting to no; `-y` skips
 the prompt. `remove-songs` needs a song to actually be in the playlist (it looks
 up the internal per-item ID), and it reports any IDs it could not find.
