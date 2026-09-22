@@ -36,6 +36,12 @@ The two destructive commands ask for confirmation, defaulting to no; `-y` skips
 the prompt. `remove-songs` needs a song to actually be in the playlist (it looks
 up the internal per-item ID), and it reports any IDs it could not find.
 
+### Duplicates
+
+`add-songs` does not skip duplicates — YouTube rejects the whole call if any of
+the songs is already in the playlist, so nothing is added, not even the new ones.
+The command reports that and exits 1. `--duplicates` adds them a second time.
+
 ### Liked songs
 
 `-p LM` works for `add-songs` and `remove-songs` too, but liking is not a

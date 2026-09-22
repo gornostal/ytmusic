@@ -195,6 +195,27 @@ def api(action: str, fn, *fn_args, **kwargs):
         sys.exit(1)
 
 
+def response_message(result: dict) -> str | None:
+    """The text YouTube would have shown in a toast or dialog, if the edit was refused."""
+    def walk(node):
+        if isinstance(node, dict):
+            # prefer the message over the dialog title, which walk would reach first
+            for key in ("responseText", "dialogMessages"):
+                if key in node and (found := walk(node[key])):
+                    return found
+            runs = node.get("runs")
+            if isinstance(runs, list):
+                text = "".join(r.get("text", "") for r in runs if isinstance(r, dict))
+                if text:
+                    return text
+            return next((found for v in node.values() if (found := walk(v))), None)
+        if isinstance(node, list):
+            return next((found for v in node if (found := walk(v))), None)
+        return None
+
+    return walk(result.get("actions")) if isinstance(result, dict) else None
+
+
 def print_tracks(title: str, tracks: list[dict]) -> None:
     table = Table(title=title, header_style="bold")
     table.add_column("#", justify="right", style="dim")
@@ -389,8 +410,19 @@ def cmd_add_songs(args: argparse.Namespace) -> None:
     )
     if args.json:
         print(json.dumps(result, indent=2))
-        return
-    console.print(f"[green]Added[/] {len(args.video_ids)} song(s) to [cyan]{args.playlist}[/]")
+
+    # a rejected edit comes back as a normal response with a failed status,
+    # and it is all-or-nothing: not even the new songs get added
+    status = result.get("status", "") if isinstance(result, dict) else str(result)
+    if "SUCCEEDED" not in status:
+        reason = response_message(result) or status or "unknown error"
+        err.print(f"[red]Nothing was added:[/] {reason}")
+        if "duplicat" in reason.lower() or "already in" in reason.lower():
+            err.print("[dim]Pass --duplicates to add them anyway.[/]")
+        sys.exit(1)
+
+    if not args.json:
+        console.print(f"[green]Added[/] {len(args.video_ids)} song(s) to [cyan]{args.playlist}[/]")
 
 
 def cmd_remove_songs(args: argparse.Namespace) -> None:
