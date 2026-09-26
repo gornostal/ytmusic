@@ -30,7 +30,7 @@ uv run ytm.py delete-playlist -p <playlistId>             # asks y/N
 
 `-p LM` is the "Liked songs" playlist. Every command takes `--json` for raw
 output, and the `songs`/`liked` tables print the video IDs the editing commands
-take.
+take. Video IDs that start with `-` (e.g. `-K8o7R1LwVA`) can be passed as-is.
 
 The `playlists` table has an `Owned` column: `no` means someone else's playlist
 or an auto-generated one, and `add-songs`/`remove-songs` on it will fail. `LM`
@@ -68,7 +68,8 @@ a POST to `/youtubei/v1/` and use **Copy -> Copy as cURL**; paste that into
 accepted. Plain "Copy as fetch" is not — it omits cookies, and `login` says so.
 
 `login` verifies the paste against the account endpoint and prints your account
-name, because bad cookies otherwise just return an empty library.
+name, because bad cookies otherwise just return an empty library. Every other
+command runs the same check first and says when the login has expired.
 
 Credentials are stored in `~/.config/ytm/browser.json` (mode 600). They're the
 browser cookies for your Google account — they expire after a while, just run

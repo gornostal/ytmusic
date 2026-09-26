@@ -110,10 +110,18 @@ def load_client() -> YTMusic:
         err.print(f"[red]Not logged in.[/] Run [bold]ytm login[/] first (no credentials at {AUTH_FILE}).")
         sys.exit(1)
     try:
-        return YTMusic(str(AUTH_FILE))
-    except Exception as exc:  # malformed/expired headers
+        yt = YTMusic(str(AUTH_FILE))
+    except Exception as exc:  # malformed headers
         err.print(f"[red]Could not authenticate:[/] {exc}\nTry [bold]ytm login[/] again.")
         sys.exit(1)
+    # expired cookies don't raise, they just return an empty library, so
+    # check them against the account endpoint like login does
+    try:
+        yt.get_account_info()
+    except Exception:
+        err.print("[red]Your login has expired.[/] Run [bold]ytm login[/] again.")
+        sys.exit(1)
+    return yt
 
 
 def artists_of(track: dict) -> list[str]:
@@ -463,6 +471,19 @@ def cmd_remove_songs(args: argparse.Namespace) -> None:
     console.print(f"[green]Removed[/] {len(items)} song(s) from {title}")
 
 
+_DASH_VIDEO_ID = re.compile(r"-[A-Za-z0-9_-]{10}")
+_ID_MARK = "\0"  # can't appear in a video ID
+
+
+def mark_dash_ids(argv: list[str]) -> list[str]:
+    """Hide video IDs starting with '-' (e.g. -K8o7R1LwVA) from argparse, which would
+    take them for options. No option is 11 characters long, so they can't clash."""
+    if "--" in argv:  # everything after it is positional already
+        end = argv.index("--")
+        return [*mark_dash_ids(argv[:end]), *argv[end:]]
+    return [_ID_MARK + a if _DASH_VIDEO_ID.fullmatch(a) else a for a in argv]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="ytm", description="Browse and edit your YouTube Music library.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -519,7 +540,12 @@ def main() -> None:
     p.add_argument("video_ids", nargs="+", metavar="VIDEO_ID", help="song IDs (the ID column of 'songs')")
     p.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
 
-    args = parser.parse_args()
+    argv = sys.argv[1:]
+    if argv and argv[0] in ("add-songs", "remove-songs", "rm-songs"):
+        argv = mark_dash_ids(argv)
+    args = parser.parse_args(argv)
+    if hasattr(args, "video_ids"):
+        args.video_ids = [v.removeprefix(_ID_MARK) for v in args.video_ids]
     try:
         args.func(args)
     except KeyboardInterrupt:
